@@ -1,0 +1,73 @@
+[project]
+name = "calc-financeira-br"
+version = "0.1.0"
+description = "Servidor MCP com cálculos financeiros brasileiros exatos e explicados: renda fixa, taxas equivalentes e financiamentos."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Mateus Henrique" }]
+requires-python = ">=3.12"
+keywords = ["mcp", "finanças", "renda fixa", "cdi", "imposto de renda", "iof", "brasil"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Natural Language :: Portuguese (Brazilian)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
+]
+dependencies = [
+    "httpx>=0.28,<1",
+    "mcp>=2.2,<3",
+    "pydantic>=2.11,<3",
+]
+
+[project.scripts]
+calc-financeira-br = "calc_financeira_br.server:main"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.130",
+    "mypy>=1.18",
+    "pytest>=8.4",
+    "ruff>=0.13",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "UP", "SIM", "RUF", "N", "ANN", "PT", "C4", "DTZ", "PL",
+]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # acentos e caracteres do português são intencionais
+    "PLR2004",                     # números mágicos são comuns em testes de borda
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "PLR0913"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+packages = ["calc_financeira_br", "tests"]
+
+[tool.pytest.ini_options]
+addopts = ["-ra", "--strict-markers", "--import-mode=importlib"]
+testpaths = ["tests"]
+markers = [
+    "rede: acessa a rede de verdade (ex.: API do Banco Central); só roda com --rede",
+]
