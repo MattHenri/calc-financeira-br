@@ -16,6 +16,7 @@ async def test_servidor_responde_e_lista_tools() -> None:
         "obter_indicadores",
         "simular_renda_fixa",
         "taxa_equivalente",
+        "comparar_investimentos",
     }
 
 

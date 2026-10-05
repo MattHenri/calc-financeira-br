@@ -11,6 +11,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field
 
 from calc_financeira_br import __version__
+from calc_financeira_br.calculos.comparacao import Candidato, ranquear
 from calc_financeira_br.calculos.renda_fixa import (
     NOME_TIPO,
     TITULOS_BANCARIOS,
@@ -41,7 +42,12 @@ from calc_financeira_br.dados.bcb import (
     NomeIndicador,
     agora_brasilia,
 )
-from calc_financeira_br.formatacao import formatar_decimal, formatar_percentual, quantizar
+from calc_financeira_br.formatacao import (
+    formatar_decimal,
+    formatar_percentual,
+    formatar_reais,
+    quantizar,
+)
 from calc_financeira_br.modelos import Resposta
 from calc_financeira_br.regras.carregar import TipoTitulo, convencoes
 
@@ -469,6 +475,164 @@ async def simular_renda_fixa(  # noqa: PLR0913, PLR0917
     )
     return Resposta(
         resultado=resultado, memoria_calculo=memoria, premissas=mercado.premissas + premissas
+    )
+
+
+# ----------------------------------------------------------- comparar_investimentos
+
+
+class OpcaoInvestimento(BaseModel):
+    tipo: TipoTitulo = Field(description="cdb, lc, lci, lca, tesouro_selic ou poupanca.")
+    percentual_cdi: Decimal | None = Field(
+        default=None, gt=0, le=1000, description="Pós-fixado: % do CDI (110 = 110%)."
+    )
+    taxa_prefixada: Decimal | None = Field(
+        default=None, gt=-100, le=1000, description="Prefixado: % a.a."
+    )
+    nome: str | None = Field(
+        default=None, max_length=80, description="Nome para exibir. Padrão: tipo e taxa."
+    )
+
+
+def _descrever_opcao(opcao: OpcaoInvestimento) -> str:
+    if opcao.nome:
+        return opcao.nome
+    nome = NOME_TIPO[opcao.tipo]
+    if opcao.percentual_cdi is not None:
+        return f"{nome} {formatar_percentual(opcao.percentual_cdi)} do CDI"
+    if opcao.taxa_prefixada is not None:
+        return f"{nome} prefixado {formatar_percentual(opcao.taxa_prefixada)} a.a."
+    return nome
+
+
+class OpcaoRanqueada(BaseModel):
+    posicao: int = Field(description="1 = maior valor líquido. Empates dividem a posição.")
+    nome: str
+    simulacao: ResultadoRendaFixa
+    diferenca_para_o_primeiro: Decimal = Field(
+        description="Reais a menos que a primeira colocada no resgate."
+    )
+    diferenca_anual_pp: Decimal = Field(
+        description="Rentabilidade líquida anual a menos que a primeira, em pontos percentuais."
+    )
+
+
+class ResultadoComparacao(BaseModel):
+    melhor: str = Field(description="Nome da opção com maior valor líquido.")
+    ranking: list[OpcaoRanqueada]
+
+
+@mcp.tool()
+async def comparar_investimentos(  # noqa: PLR0913, PLR0917
+    opcoes: Annotated[
+        list[OpcaoInvestimento],
+        Field(min_length=2, max_length=10, description="De 2 a 10 opções para comparar."),
+    ],
+    valor: Annotated[
+        Decimal, Field(gt=0, le=Decimal("1e12"), description="Valor aplicado em cada opção.")
+    ],
+    data_resgate: Annotated[date, Field(description="Data do resgate (AAAA-MM-DD).")],
+    data_aplicacao: Annotated[
+        date | None, Field(description="Data da aplicação (AAAA-MM-DD). Padrão: hoje.")
+    ] = None,
+    cdi_anual: Annotated[
+        TaxaMercado, Field(description="CDI projetado, % a.a. Padrão: CDI atual do BC.")
+    ] = None,
+    selic_efetiva_anual: Annotated[
+        TaxaMercado, Field(description="Selic efetiva para o Tesouro Selic, % a.a.")
+    ] = None,
+    selic_meta_anual: Annotated[
+        TaxaMercado, Field(description="Meta da Selic para a poupança, % a.a.")
+    ] = None,
+    tr_mensal: Annotated[TaxaMercado, Field(description="TR para a poupança, % a.m.")] = None,
+    estoque_tesouro_selic: Annotated[
+        Decimal,
+        Field(ge=0, le=Decimal("1e12"), description="Tesouro Selic que você já tem, em reais."),
+    ] = Decimal(0),
+    ipca_anual: Annotated[
+        Decimal | None,
+        Field(gt=-100, le=1000, description="Inflação anual, % a.a. Padrão: IPCA 12 meses."),
+    ] = None,
+) -> Resposta[ResultadoComparacao]:
+    """Compara investimentos de renda fixa com o mesmo valor e prazo.
+
+    Simula cada opção como em simular_renda_fixa (IR, IOF, custódia, dias úteis) e
+    ordena pelo valor líquido no resgate, com a diferença em reais e em pontos
+    percentuais ao ano para a melhor opção.
+    """
+    mercado = _Mercado(
+        {
+            "cdi": cdi_anual,
+            "selic_efetiva": selic_efetiva_anual,
+            "selic": selic_meta_anual,
+            "tr": tr_mensal,
+        },
+        ipca_anual,
+    )
+    aplicacao = data_aplicacao or agora_brasilia().date()
+    nomes = [_descrever_opcao(opcao) for opcao in opcoes]
+    simulacoes: list[ResultadoRendaFixa] = []
+    premissas_opcoes: list[str] = []
+    memoria: list[str] = []
+    for numero, (opcao, nome) in enumerate(zip(opcoes, nomes, strict=True), start=1):
+        try:
+            resultado, _, premissas = await _simular_titulo(
+                mercado,
+                opcao.tipo,
+                valor,
+                aplicacao,
+                data_resgate,
+                percentual_cdi=opcao.percentual_cdi,
+                taxa_prefixada=opcao.taxa_prefixada,
+                estoque_tesouro_selic=estoque_tesouro_selic,
+            )
+        except ToolError as erro:
+            raise ToolError(f"Opção {numero} ({nome}): {erro}") from erro
+        simulacoes.append(resultado)
+        premissas_opcoes += premissas
+        descontos = f"IOF {formatar_reais(resultado.iof)}, IR {formatar_reais(resultado.ir)}"
+        if resultado.custodia:
+            descontos += f", custódia {formatar_reais(resultado.custodia)}"
+        memoria.append(
+            f"{nome}: bruto {formatar_reais(resultado.valor_bruto)}; {descontos}; líquido "
+            f"{formatar_reais(resultado.valor_liquido)} em {resultado.data_resgate:%d/%m/%Y} "
+            f"({formatar_percentual(resultado.rentabilidade_liquida_anual)} a.a.)."
+        )
+
+    posicoes, passos = ranquear(
+        [
+            Candidato(nome, s.valor_liquido, s.rentabilidade_liquida_anual)
+            for nome, s in zip(nomes, simulacoes, strict=True)
+        ]
+    )
+    memoria += passos
+    ranking = [
+        OpcaoRanqueada(
+            posicao=p.posicao,
+            nome=nomes[p.indice],
+            simulacao=simulacoes[p.indice],
+            diferenca_para_o_primeiro=p.diferenca_para_o_primeiro,
+            diferenca_anual_pp=p.diferenca_anual_pp,
+        )
+        for p in posicoes
+    ]
+    datas = {s.data_resgate for s in simulacoes}
+    premissas = mercado.premissas + list(dict.fromkeys(premissas_opcoes))
+    premissas.insert(
+        0,
+        "Mesmo valor aplicado e mesma data de resgate em todas as opções; detalhes de cada "
+        "cálculo em simular_renda_fixa.",
+    )
+    if len(datas) > 1:
+        premissas.insert(
+            1,
+            "As datas de resgate efetivas diferem: títulos passam para o próximo dia útil, "
+            "a poupança não.",
+        )
+    return Resposta(
+        resultado=ResultadoComparacao(melhor=ranking[0].nome, ranking=ranking),
+        memoria_calculo=memoria,
+        premissas=premissas,
     )
 
 

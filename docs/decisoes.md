@@ -35,6 +35,7 @@ Complementa [definicao-projeto.md](definicao-projeto.md) com o que foi decidido 
 | 2026-10-05 | Tesouro Selic: IR regressivo e IOF como CDB; acumula a Selic efetiva com a convenção do CDI (taxa diária em 8 casas, fatores truncados em 16) | Definição do projeto + decisão de projeto |
 | 2026-10-05 | Poupança: rendimento do período = (1 + TR) × (1 + adicional) − 1, com 4 casas em %; adicional de 0,5% a.m. se a Selic meta > 8,5%, senão 70% da Selic a.a. mensalizada por juros compostos. Conferido com as séries SGS 195, 226 e 432 do BC | Lei 8.177/1991, art. 12 + dados do BC |
 | 2026-10-05 | Poupança: aniversário no dia do depósito; depósitos nos dias 29, 30 e 31 fazem aniversário no dia 1º do mês seguinte; crédito mensal com saldo arredondado em centavos; regra válida para depósitos a partir de 04/05/2012 | Lei 8.177/1991, art. 12, §§ 2º a 4º |
+| 2026-10-05 | `comparar_investimentos`: de 2 a 10 opções, mesmo valor e mesma data de resgate; ranking pelo valor líquido (empates dividem a posição); cada índice de mercado é buscado uma vez por chamada | Decisão de projeto |
 | 2026-10-05 | Poupança: datas não passam para o dia útil seguinte (aniversário e resgate valem em qualquer dia); Selic meta e TR projetadas constantes (TR mensal da série 7811) | Decisão de projeto |
 
 ## Validação
