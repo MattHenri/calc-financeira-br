@@ -12,6 +12,16 @@ from pydantic import BaseModel, Field
 
 from calc_financeira_br import __version__
 from calc_financeira_br.calculos.comparacao import Candidato, ranquear
+from calc_financeira_br.calculos.financiamento import (
+    AmortizacaoExtra,
+    EfeitoAmortizacao,
+    EntradaFinanciamento,
+    Sistema,
+    UnidadeJuros,
+)
+from calc_financeira_br.calculos.financiamento import (
+    simular_financiamento as simular_financiamento_calc,
+)
 from calc_financeira_br.calculos.renda_fixa import (
     NOME_TIPO,
     TITULOS_BANCARIOS,
@@ -801,6 +811,164 @@ async def taxa_equivalente(  # noqa: PLR0913, PLR0917
         memoria_calculo=calculo.memoria,
         premissas=premissas + calculo.premissas + [f"Resultado com {casas} casas decimais."],
     )
+
+
+# ------------------------------------------------------------- simular_financiamento
+
+
+class AmortizacaoExtraEntrada(BaseModel):
+    mes: int = Field(ge=1, le=600, description="Número da parcela junto com a qual paga.")
+    valor: Decimal = Field(gt=0, le=Decimal("1e12"), description="Valor extra em reais.")
+    efeito: EfeitoAmortizacao = Field(
+        default="prazo",
+        description="'prazo' encurta o prazo mantendo a prestação; 'parcela' reduz a prestação.",
+    )
+
+
+class ParcelaSaida(BaseModel):
+    numero: int
+    data: date
+    saldo_inicial: Decimal
+    juros: Decimal
+    amortizacao: Decimal
+    prestacao: Decimal = Field(description="Juros + amortização.")
+    seguro: Decimal
+    tarifa: Decimal
+    amortizacao_extra: Decimal
+    pagamento_total: Decimal = Field(description="Prestação + seguro + tarifa + extra.")
+    saldo_final: Decimal
+
+
+class EfeitoAmortizacaoSaida(BaseModel):
+    mes: int
+    valor_pago: Decimal
+    efeito: EfeitoAmortizacao
+    juros_economizados: Decimal
+    meses_a_menos: int
+    prestacao_antes: Decimal = Field(description="Prestação do mês seguinte sem este extra.")
+    prestacao_depois: Decimal = Field(description="Prestação do mês seguinte com este extra.")
+
+
+class ResultadoFinanciamentoSaida(BaseModel):
+    sistema: Sistema
+    valor_financiado: Decimal
+    taxa_mensal: Decimal = Field(description="Taxa de juros mensal usada, em %.")
+    prazo_contratado_meses: int
+    prazo_efetivo_meses: int = Field(description="Meses até quitar, com as amortizações extras.")
+    primeira_prestacao: Decimal
+    ultima_prestacao: Decimal
+    total_juros: Decimal
+    total_amortizado: Decimal
+    total_seguros: Decimal
+    total_tarifas: Decimal = Field(description="Tarifas mensais somadas.")
+    total_pago: Decimal = Field(description="Parcelas, extras, tarifas e tributos iniciais.")
+    cet_anual: Decimal = Field(description="Custo Efetivo Total, % a.a. (Res. CMN 4.881/2020).")
+    cet_mensal: Decimal = Field(description="CET equivalente ao mês, % a.m.")
+    juros_sem_extras: Decimal = Field(description="Juros do contrato sem amortizações extras.")
+    juros_economizados: Decimal
+    efeitos_amortizacoes: list[EfeitoAmortizacaoSaida]
+    parcelas: list[ParcelaSaida] | None = Field(
+        description="Tabela completa (vazia se incluir_tabela for falso)."
+    )
+
+
+ValorReais = Annotated[Decimal, Field(ge=0, le=Decimal("1e12"))]
+
+
+@mcp.tool()
+async def simular_financiamento(  # noqa: PLR0913, PLR0917
+    valor_financiado: Annotated[
+        Decimal, Field(gt=0, le=Decimal("1e12"), description="Valor do crédito em reais.")
+    ],
+    taxa_juros: Annotated[Decimal, Field(ge=0, le=1000, description="Taxa de juros em %.")],
+    unidade_taxa: Annotated[
+        UnidadeJuros,
+        Field(
+            description="a.m. (ao mês), a.a. (efetiva ao ano) ou a.a.nominal (nominal ao ano, "
+            "capitalização mensal: dividida por 12)."
+        ),
+    ],
+    prazo_meses: Annotated[int, Field(ge=1, le=600, description="Número de parcelas.")],
+    sistema: Annotated[Sistema, Field(description="sac ou price.")],
+    data_contratacao: Annotated[
+        date | None, Field(description="Data da contratação (AAAA-MM-DD). Padrão: hoje.")
+    ] = None,
+    data_primeira_parcela: Annotated[
+        date | None, Field(description="Vencimento da 1ª parcela. Padrão: um mês depois.")
+    ] = None,
+    tarifas_iniciais: Annotated[
+        ValorReais, Field(description="Tarifas pagas na contratação, em reais.")
+    ] = Decimal(0),
+    tributos_iniciais: Annotated[
+        ValorReais, Field(description="Tributos pagos na contratação (ex.: IOF), em reais.")
+    ] = Decimal(0),
+    tarifa_mensal: Annotated[
+        ValorReais, Field(description="Tarifa fixa em cada parcela, em reais.")
+    ] = Decimal(0),
+    seguro_mensal: Annotated[
+        ValorReais, Field(description="Seguro fixo em cada parcela, em reais.")
+    ] = Decimal(0),
+    seguro_percentual_saldo: Annotated[
+        Decimal,
+        Field(ge=0, le=100, description="Seguro em % a.m. sobre o saldo devedor (ex.: MIP)."),
+    ] = Decimal(0),
+    amortizacoes_extras: Annotated[
+        list[AmortizacaoExtraEntrada] | None,
+        Field(max_length=120, description="Pagamentos extras: mês, valor e efeito."),
+    ] = None,
+    incluir_tabela: Annotated[
+        bool, Field(description="Devolver a tabela completa de parcelas.")
+    ] = True,
+) -> Resposta[ResultadoFinanciamentoSaida]:
+    """Simula um financiamento SAC ou Price: parcelas, juros, CET e amortizações extras.
+
+    Calcula a tabela mês a mês com seguros e tarifas, o Custo Efetivo Total pela
+    Resolução CMN 4.881/2020 e quanto cada amortização extra economiza em juros,
+    reduzindo o prazo ou a prestação.
+    """
+    entrada = EntradaFinanciamento(
+        valor_financiado=valor_financiado,
+        taxa_juros=taxa_juros,
+        unidade_taxa=unidade_taxa,
+        prazo_meses=prazo_meses,
+        sistema=sistema,
+        data_contratacao=data_contratacao or agora_brasilia().date(),
+        data_primeira_parcela=data_primeira_parcela,
+        tarifas_iniciais=tarifas_iniciais,
+        tributos_iniciais=tributos_iniciais,
+        tarifa_mensal=tarifa_mensal,
+        seguro_mensal=seguro_mensal,
+        seguro_percentual_saldo=seguro_percentual_saldo,
+        amortizacoes_extras=tuple(
+            AmortizacaoExtra(e.mes, e.valor, e.efeito) for e in amortizacoes_extras or []
+        ),
+    )
+    try:
+        r = simular_financiamento_calc(entrada)
+    except ValueError as erro:
+        raise ToolError(str(erro)) from erro
+
+    resultado = ResultadoFinanciamentoSaida(
+        sistema=sistema,
+        valor_financiado=valor_financiado,
+        taxa_mensal=quantizar(r.taxa_mensal * 100, 6),
+        prazo_contratado_meses=prazo_meses,
+        prazo_efetivo_meses=r.prazo_efetivo_meses,
+        primeira_prestacao=r.parcelas[0].prestacao,
+        ultima_prestacao=r.parcelas[-1].prestacao,
+        total_juros=r.total_juros,
+        total_amortizado=r.total_amortizado,
+        total_seguros=r.total_seguros,
+        total_tarifas=r.total_tarifas,
+        total_pago=r.total_pago,
+        cet_anual=r.cet_anual,
+        cet_mensal=r.cet_mensal,
+        juros_sem_extras=r.juros_sem_extras,
+        juros_economizados=r.juros_sem_extras - r.total_juros,
+        efeitos_amortizacoes=[EfeitoAmortizacaoSaida(**vars(e)) for e in r.efeitos],
+        parcelas=[ParcelaSaida(**vars(p)) for p in r.parcelas] if incluir_tabela else None,
+    )
+    return Resposta(resultado=resultado, memoria_calculo=r.memoria, premissas=r.premissas)
 
 
 def main() -> None:

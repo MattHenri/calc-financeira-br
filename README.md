@@ -26,7 +26,7 @@ LLMs erram contas com juros compostos, dias úteis e faixas de imposto. Este ser
 | `simular_renda_fixa` | ✅ CDB, LC, LCI e LCA (pós-fixados em % do CDI ou prefixados), Tesouro Selic com custódia da B3 e poupança, com IR, IOF e dias úteis |
 | `comparar_investimentos` | ✅ Ranking de 2 a 10 opções pelo valor líquido, com a diferença em reais e em pontos percentuais |
 | `taxa_equivalente` | ✅ Entre períodos (a.m., a.a., dia útil...), nominal × real e isento × tributado exato no prazo |
-| `simular_financiamento` | 🚧 planejada |
+| `simular_financiamento` | ✅ SAC e Price com seguros, tarifas, amortizações extras (prazo ou parcela) e CET pela Resolução CMN 4.881/2020 |
 
 Todas as respostas são **simulações, não recomendação de investimento**.
 
@@ -47,7 +47,7 @@ npx @modelcontextprotocol/inspector uv run calc-financeira-br   # MCP Inspector
 
 ## Próximos passos
 
-- `simular_financiamento` (SAC e Price, com CET e amortizações extras).
+- Conferir os casos de referência com calculadoras externas.
 - Publicar a v1 no PyPI.
 
 ## Licença

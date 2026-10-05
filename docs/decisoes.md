@@ -36,6 +36,10 @@ Complementa [definicao-projeto.md](definicao-projeto.md) com o que foi decidido 
 | 2026-10-05 | Poupança: rendimento do período = (1 + TR) × (1 + adicional) − 1, com 4 casas em %; adicional de 0,5% a.m. se a Selic meta > 8,5%, senão 70% da Selic a.a. mensalizada por juros compostos. Conferido com as séries SGS 195, 226 e 432 do BC | Lei 8.177/1991, art. 12 + dados do BC |
 | 2026-10-05 | Poupança: aniversário no dia do depósito; depósitos nos dias 29, 30 e 31 fazem aniversário no dia 1º do mês seguinte; crédito mensal com saldo arredondado em centavos; regra válida para depósitos a partir de 04/05/2012 | Lei 8.177/1991, art. 12, §§ 2º a 4º |
 | 2026-10-05 | `comparar_investimentos`: de 2 a 10 opções, mesmo valor e mesma data de resgate; ranking pelo valor líquido (empates dividem a posição); cada índice de mercado é buscado uma vez por chamada | Decisão de projeto |
+| 2026-10-05 | Financiamento: a unidade da taxa é obrigatória (a.m., a.a. efetiva ou a.a. nominal com capitalização mensal, dividida por 12) para não confundir taxa nominal e efetiva | Decisão de projeto |
+| 2026-10-05 | Financiamento: juros e prestações arredondados em centavos (ROUND_HALF_UP) a cada mês; a última parcela absorve a diferença; vencimentos mensais ancorados no dia da contratação (ou da 1ª parcela), usando o último dia do mês quando o dia não existe | Decisão de projeto |
+| 2026-10-05 | Amortização extra paga junto com a parcela, depois da amortização normal. 'prazo' mantém a prestação (Price) ou a amortização (SAC); 'parcela' recalcula a prestação pelo prazo restante planejado, que já considera extras anteriores | Decisão de projeto |
+| 2026-10-05 | CET sobre o fluxo contratado, sem as amortizações extras (opcionais); tarifas e tributos iniciais saem do valor liberado (FC0); seguros e tarifas mensais entram nos FCj; sem correção monetária do saldo | Res. CMN 4.881/2020 + decisão de projeto |
 | 2026-10-05 | Poupança: datas não passam para o dia útil seguinte (aniversário e resgate valem em qualquer dia); Selic meta e TR projetadas constantes (TR mensal da série 7811) | Decisão de projeto |
 
 ## Validação
@@ -44,7 +48,8 @@ Complementa [definicao-projeto.md](definicao-projeto.md) com o que foi decidido 
 - Lista de feriados conferida item a item com o arquivo da ANBIMA (91 datas, 2024–2030).
 - Tabela do IOF conferida com o Anexo do Decreto 6.306/2007.
 - Rendimento mensal da poupança conferido com a série SGS 195 do Banco Central em 5 períodos (2021 e 2026), cobrindo as duas regras (Selic acima e abaixo de 8,5%).
-- Valores finais de renda fixa (`tests/referencia`) ainda **pendentes de validação** numa calculadora externa.
+- Prestação Price e juros do SAC conferidos por conta fechada; CET conferido por TIR independente (40,15% com meses iguais × 40,12% com dias corridos/365).
+- Valores finais de renda fixa e do CET (`tests/referencia`) ainda **pendentes de validação** numa calculadora externa.
 
 ## Fontes oficiais
 
