@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import get_args
 
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from calc_financeira_br.calculos.renda_fixa import (
@@ -77,6 +77,7 @@ def test_mais_cdi_nunca_rende_menos(entrada: EntradaPosCDI, extra: Decimal) -> N
 
 
 @settings(max_examples=60, deadline=None)
+@example(Decimal("14559.96"), Decimal("1.49"), date(2024, 2, 2), 1, Decimal("1.50"))
 @given(
     valores,
     st.decimals(min_value=Decimal(1), max_value=Decimal(30), places=2),
@@ -95,8 +96,9 @@ def test_tesouro_selic_liquido_entre_aplicado_e_bruto(
         return
     assert r.custodia >= 0
     assert r.valor_liquido <= r.valor_bruto
-    # Custódia (0,2% a.a.) nunca passa do rendimento com Selic ≥ 1% a.a.
-    assert r.valor_liquido >= valor
+    # IOF + IR nunca passam do rendimento. A custódia incide sobre o valor investido e,
+    # num resgate de poucos dias (IOF de até 96%), pode deixar o líquido abaixo do aplicado.
+    assert r.valor_liquido + r.custodia >= valor
 
 
 @settings(max_examples=60, deadline=None)
