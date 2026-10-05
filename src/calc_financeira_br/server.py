@@ -4,7 +4,7 @@ import asyncio
 from datetime import date
 from decimal import Decimal
 from functools import cache
-from typing import Annotated, get_args
+from typing import Annotated, Literal, get_args
 
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -12,6 +12,16 @@ from pydantic import BaseModel, Field
 
 from calc_financeira_br import __version__
 from calc_financeira_br.calculos.renda_fixa import EntradaPosCDI, simular_pos_cdi
+from calc_financeira_br.calculos.taxas import (
+    Equivalencia,
+    Sentido,
+    UnidadePeriodo,
+    UnidadeTaxa,
+    converter_periodo,
+    equivalente_isento_tributado,
+    nominal_para_real,
+    real_para_nominal,
+)
 from calc_financeira_br.dados.bcb import (
     SERIES,
     ClienteBCB,
@@ -20,9 +30,9 @@ from calc_financeira_br.dados.bcb import (
     NomeIndicador,
     agora_brasilia,
 )
-from calc_financeira_br.formatacao import formatar_decimal, formatar_percentual
+from calc_financeira_br.formatacao import formatar_decimal, formatar_percentual, quantizar
 from calc_financeira_br.modelos import Resposta
-from calc_financeira_br.regras.carregar import TipoTitulo
+from calc_financeira_br.regras.carregar import TipoTitulo, convencoes
 
 mcp = MCPServer(
     "calc-financeira-br",
@@ -281,6 +291,173 @@ async def simular_renda_fixa(  # noqa: PLR0913, PLR0917
     )
     return Resposta(
         resultado=resultado, memoria_calculo=r.memoria, premissas=premissas + r.premissas
+    )
+
+
+# ---------------------------------------------------------------- taxa_equivalente
+
+Conversao = Literal[
+    "periodo",
+    "nominal_para_real",
+    "real_para_nominal",
+    "isento_para_tributado",
+    "tributado_para_isento",
+]
+
+
+class ResultadoTaxaEquivalente(BaseModel):
+    conversao: Conversao
+    taxa_origem: Decimal
+    unidade_origem: UnidadeTaxa
+    taxa_equivalente: Decimal = Field(description="Em pontos percentuais (1 = 1%).")
+    unidade_destino: UnidadeTaxa
+    inflacao: Decimal | None = Field(
+        default=None, description="Inflação usada, na unidade da taxa (nominal × real)."
+    )
+    aliquota_ir: Decimal | None = Field(
+        default=None, description="Alíquota de IR do prazo (isento × tributado)."
+    )
+    dias_corridos: int | None = None
+    dias_uteis: int | None = None
+
+
+async def _cdi_padrao(premissas: list[str]) -> Decimal:
+    try:
+        leitura = await obter_cliente_bcb().ultimo_valor("cdi")
+    except ErroBCB as erro:
+        raise ToolError(
+            f"Não foi possível obter o CDI no Banco Central ({erro}). Informe cdi_anual."
+        ) from erro
+    premissas.append(f"CDI de {formatar_percentual(leitura.valor)} a.a.: {_origem(leitura)}.")
+    return leitura.valor
+
+
+async def _inflacao_padrao(unidade: UnidadePeriodo, premissas: list[str]) -> Decimal:
+    try:
+        leitura = await obter_cliente_bcb().ultimo_valor("ipca_12m")
+    except ErroBCB as erro:
+        raise ToolError(
+            f"Não foi possível obter o IPCA no Banco Central ({erro}). Informe a inflação."
+        ) from erro
+    premissas.append(
+        f"Inflação: IPCA acumulado em 12 meses de {formatar_percentual(leitura.valor)}, "
+        f"{_origem(leitura)}."
+    )
+    if unidade == "a.a.":
+        return leitura.valor
+    convertida = converter_periodo(leitura.valor, "a.a.", unidade)
+    premissas.append(f"IPCA convertido para {unidade}: {formatar_percentual(convertida.taxa, 6)}.")
+    return convertida.taxa
+
+
+@mcp.tool()
+async def taxa_equivalente(  # noqa: PLR0913, PLR0917
+    conversao: Annotated[
+        Conversao,
+        Field(
+            description="periodo (ex.: a.m. → a.a.), nominal_para_real, real_para_nominal, "
+            "isento_para_tributado ou tributado_para_isento."
+        ),
+    ],
+    taxa: Annotated[
+        Decimal,
+        Field(gt=-100, le=10000, description="Taxa em %: 1 = 1%. Em %cdi, 90 = 90% do CDI."),
+    ],
+    unidade: Annotated[
+        UnidadeTaxa,
+        Field(description="Unidade da taxa: a.a., a.s., a.t., a.m., a.d.u. (dia útil) ou %cdi."),
+    ] = "a.a.",
+    unidade_destino: Annotated[
+        UnidadePeriodo | None,
+        Field(description="Unidade desejada (obrigatória em 'periodo')."),
+    ] = None,
+    inflacao: Annotated[
+        Decimal | None,
+        Field(
+            gt=-100,
+            le=1000,
+            description="Inflação em %, na mesma unidade da taxa. Padrão: IPCA 12 meses do BC.",
+        ),
+    ] = None,
+    prazo_dias: Annotated[
+        int | None,
+        Field(ge=1, le=10950, description="Prazo em dias corridos (isento × tributado)."),
+    ] = None,
+    cdi_anual: Annotated[
+        Decimal | None,
+        Field(ge=0, le=100, description="CDI em % a.a. para taxas em %cdi. Padrão: CDI do BC."),
+    ] = None,
+) -> Resposta[ResultadoTaxaEquivalente]:
+    """Converte taxas: entre períodos, nominal × real e isento × tributado.
+
+    Exemplos: 1% a.m. em % a.a.; 12% a.a. nominal com IPCA → real; quanto um CDB
+    precisa pagar (% do CDI) para empatar com uma LCI a 90% do CDI em 2 anos.
+    A equivalência isento × tributado é exata no prazo (IR sobre o rendimento total).
+    """
+    premissas: list[str] = []
+    casas = convencoes().valores.casas_taxas
+    resultado = ResultadoTaxaEquivalente(
+        conversao=conversao,
+        taxa_origem=taxa,
+        unidade_origem=unidade,
+        taxa_equivalente=Decimal(0),
+        unidade_destino=unidade,
+    )
+    try:
+        if conversao == "periodo":
+            if unidade == "%cdi" or unidade_destino is None:
+                raise ToolError(
+                    "Em 'periodo', informe unidade_destino e use uma unidade de tempo "
+                    "(a.a., a.s., a.t., a.m. ou a.d.u.), não %cdi."
+                )
+            calculo: Equivalencia = converter_periodo(taxa, unidade, unidade_destino)
+            resultado.unidade_destino = unidade_destino
+        elif conversao in ("nominal_para_real", "real_para_nominal"):
+            if unidade == "%cdi":
+                raise ToolError("Nominal × real exige uma taxa em unidade de tempo, não %cdi.")
+            if inflacao is None:
+                inflacao = await _inflacao_padrao(unidade, premissas)
+            else:
+                premissas.append(
+                    f"Inflação de {formatar_percentual(inflacao)} {unidade} informada pelo usuário."
+                )
+            funcao = nominal_para_real if conversao == "nominal_para_real" else real_para_nominal
+            calculo = funcao(taxa, inflacao)
+            resultado.inflacao = inflacao
+        else:
+            if prazo_dias is None:
+                raise ToolError(
+                    "Isento × tributado precisa do prazo em dias corridos (prazo_dias)."
+                )
+            if unidade == "%cdi":
+                if cdi_anual is None:
+                    cdi_anual = await _cdi_padrao(premissas)
+                else:
+                    premissas.append(
+                        f"CDI de {formatar_percentual(cdi_anual)} a.a. informado pelo usuário."
+                    )
+            sentido: Sentido = (
+                "isento_para_tributado"
+                if conversao == "isento_para_tributado"
+                else "tributado_para_isento"
+            )
+            tributaria = equivalente_isento_tributado(
+                taxa, unidade, prazo_dias, agora_brasilia().date(), sentido, cdi_anual
+            )
+            calculo = tributaria
+            resultado.aliquota_ir = tributaria.aliquota_ir
+            resultado.dias_corridos = tributaria.dias_corridos
+            resultado.dias_uteis = tributaria.dias_uteis
+    except ValueError as erro:
+        raise ToolError(str(erro)) from erro
+
+    resultado.taxa_equivalente = quantizar(
+        calculo.taxa, casas, convencoes().valores.arredondamento_reais
+    )
+    return Resposta(
+        resultado=resultado,
+        memoria_calculo=calculo.memoria,
+        premissas=premissas + calculo.premissas + [f"Resultado com {casas} casas decimais."],
     )
 
 

@@ -73,6 +73,7 @@ class ConvencoesValores(BaseModel):
     casas_reais: int = Field(ge=0)
     arredondamento_reais: ModoArredondamento
     casas_percentuais: int = Field(ge=0)
+    casas_taxas: int = Field(ge=0)
 
 
 class Convencoes(BaseModel):

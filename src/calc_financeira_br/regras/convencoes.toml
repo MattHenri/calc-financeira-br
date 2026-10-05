@@ -16,3 +16,5 @@ casas_reais = 2
 arredondamento_reais = "ROUND_HALF_UP"
 # Rentabilidades (%) exibidas no resultado.
 casas_percentuais = 4
+# Taxas equivalentes (%), com casas suficientes para taxas ao dia útil.
+casas_taxas = 6

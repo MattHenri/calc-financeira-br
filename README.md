@@ -25,7 +25,7 @@ LLMs erram contas com juros compostos, dias úteis e faixas de imposto. Este ser
 | `obter_indicadores` | ✅ Selic, CDI, IPCA (mês e 12 meses) e TR do Banco Central |
 | `simular_renda_fixa` | 🟡 CDB, LC, LCI e LCA pós-fixados (% do CDI), com IR, IOF e dias úteis; Tesouro Selic, prefixado e poupança em breve |
 | `comparar_investimentos` | 🚧 planejada |
-| `taxa_equivalente` | 🚧 planejada |
+| `taxa_equivalente` | ✅ Entre períodos (a.m., a.a., dia útil...), nominal × real e isento × tributado exato no prazo |
 | `simular_financiamento` | 🚧 planejada |
 
 Todas as respostas são **simulações, não recomendação de investimento**.
