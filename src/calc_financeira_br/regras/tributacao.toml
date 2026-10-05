@@ -1,0 +1,49 @@
+# Regras de tributação de renda fixa para pessoa física.
+# Valores numéricos ficam como texto para virar Decimal sem passar por float.
+# Mudou a lei? Edite aqui e acrescente um teste.
+
+[ir]
+fonte = "Definição do projeto (regras vigentes em outubro de 2026); Lei 11.033/2004, art. 1º"
+
+# Tabela regressiva: alíquota sobre o rendimento, pelo prazo em dias corridos.
+# Cada faixa vale até `ate_dias` (inclusive); a última faixa não tem limite.
+[[ir.faixas]]
+ate_dias = 180
+aliquota = "22.5"
+
+[[ir.faixas]]
+ate_dias = 360
+aliquota = "20"
+
+[[ir.faixas]]
+ate_dias = 720
+aliquota = "17.5"
+
+[[ir.faixas]]
+aliquota = "15"
+
+# Regime de IR por tipo de título. `aplicacao_desde` e `aplicacao_ate` (opcionais,
+# AAAA-MM-DD, inclusive) restringem a regra a aplicações feitas no período, para
+# acomodar mudanças como uma eventual tributação de LCI/LCA.
+# A primeira regra que casar com o tipo e a data de aplicação vence.
+[[ir.regras]]
+tipos = ["cdb", "lc"]
+regime = "regressivo"
+
+[[ir.regras]]
+tipos = ["lci", "lca"]
+regime = "isento"
+
+[iof]
+fonte = "Decreto 6.306/2007, art. 32 e Anexo (texto compilado do Planalto, conferido em 2026-10-01)"
+
+# Títulos sujeitos ao IOF regressivo. A LCA tem alíquota zero (art. 32, § 2º, V).
+tipos = ["cdb", "lc", "lci"]
+
+# Percentual do rendimento devido em resgates com 1 a 30 dias corridos (Anexo do decreto).
+# Posição 1 da lista = 1 dia. A partir de 30 dias, zero.
+tabela = [
+    "96", "93", "90", "86", "83", "80", "76", "73", "70", "66",
+    "63", "60", "56", "53", "50", "46", "43", "40", "36", "33",
+    "30", "26", "23", "20", "16", "13", "10", "6", "3", "0",
+]

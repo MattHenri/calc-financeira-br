@@ -12,7 +12,7 @@ from tests.conftest import RedeBloqueadaError
 async def test_servidor_responde_e_lista_tools() -> None:
     async with Client(mcp, raise_exceptions=True) as cliente:
         resultado = await cliente.list_tools()
-    assert {tool.name for tool in resultado.tools} == {"obter_indicadores"}
+    assert {tool.name for tool in resultado.tools} == {"obter_indicadores", "simular_renda_fixa"}
 
 
 def test_versao_definida() -> None:

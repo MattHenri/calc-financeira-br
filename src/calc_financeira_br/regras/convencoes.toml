@@ -1,0 +1,18 @@
+# Convenções de cálculo de mercado. Ver docs/decisoes.md.
+
+[cdi]
+# Taxa anual convertida em taxa diária na base de dias úteis.
+base_dias_uteis = 252
+# Taxa diária do CDI (TDI): casas decimais e modo (nomes do módulo decimal).
+casas_taxa_diaria = 8
+arredondamento_taxa_diaria = "ROUND_HALF_UP"
+# Fator diário (1 + TDI × %CDI) e fator acumulado: casas e modo, aplicados a cada dia útil.
+casas_fator_acumulado = 16
+arredondamento_fator = "ROUND_DOWN"
+
+[valores]
+# Valores em reais: casas decimais e modo de arredondamento.
+casas_reais = 2
+arredondamento_reais = "ROUND_HALF_UP"
+# Rentabilidades (%) exibidas no resultado.
+casas_percentuais = 4

@@ -34,6 +34,21 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(pular)
 
 
+_pendentes: list[str] = []
+
+
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    if report.when == "call" and "pendente_validacao" in report.keywords:
+        _pendentes.append(report.nodeid)
+
+
+def pytest_terminal_summary(terminalreporter: Any) -> None:
+    if _pendentes:
+        terminalreporter.section("pendentes de validação externa")
+        for nodeid in _pendentes:
+            terminalreporter.write_line(nodeid)
+
+
 def _eh_local(endereco: Any) -> bool:
     if not isinstance(endereco, tuple) or not endereco:
         return True  # sockets de arquivo/unix

@@ -72,4 +72,5 @@ addopts = ["-ra", "--strict-markers", "--import-mode=importlib"]
 testpaths = ["tests"]
 markers = [
     "rede: acessa a rede de verdade (ex.: API do Banco Central); só roda com --rede",
+    "pendente_validacao: valor de referência ainda não conferido numa calculadora externa",
 ]
