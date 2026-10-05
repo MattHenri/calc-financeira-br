@@ -45,6 +45,11 @@ uv run calc-financeira-br    # sobe o servidor (stdio)
 npx @modelcontextprotocol/inspector uv run calc-financeira-br   # MCP Inspector
 ```
 
+## Próximos passos
+
+- `simular_financiamento` (SAC e Price, com CET e amortizações extras).
+- Publicar a v1 no PyPI.
+
 ## Licença
 
 [MIT](LICENSE)
