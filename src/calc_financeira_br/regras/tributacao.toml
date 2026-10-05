@@ -27,18 +27,19 @@ aliquota = "15"
 # acomodar mudanças como uma eventual tributação de LCI/LCA.
 # A primeira regra que casar com o tipo e a data de aplicação vence.
 [[ir.regras]]
-tipos = ["cdb", "lc"]
+tipos = ["cdb", "lc", "tesouro_selic"]
 regime = "regressivo"
 
 [[ir.regras]]
-tipos = ["lci", "lca"]
+tipos = ["lci", "lca", "poupanca"]
 regime = "isento"
 
 [iof]
 fonte = "Decreto 6.306/2007, art. 32 e Anexo (texto compilado do Planalto, conferido em 2026-10-01)"
 
-# Títulos sujeitos ao IOF regressivo. A LCA tem alíquota zero (art. 32, § 2º, V).
-tipos = ["cdb", "lc", "lci"]
+# Títulos sujeitos ao IOF regressivo. A LCA tem alíquota zero (art. 32, § 2º, V);
+# a poupança não tem IOF.
+tipos = ["cdb", "lc", "lci", "tesouro_selic"]
 
 # Percentual do rendimento devido em resgates com 1 a 30 dias corridos (Anexo do decreto).
 # Posição 1 da lista = 1 dia. A partir de 30 dias, zero.

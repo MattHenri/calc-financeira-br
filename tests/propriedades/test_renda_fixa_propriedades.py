@@ -5,7 +5,15 @@ from typing import get_args
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from calc_financeira_br.calculos.renda_fixa import EntradaPosCDI, ResultadoPosCDI, simular_pos_cdi
+from calc_financeira_br.calculos.renda_fixa import (
+    EntradaPosCDI,
+    EntradaPoupanca,
+    EntradaTesouroSelic,
+    ResultadoPosCDI,
+    simular_pos_cdi,
+    simular_poupanca,
+    simular_tesouro_selic,
+)
 from calc_financeira_br.regras.carregar import TipoTitulo
 
 tipos = st.sampled_from(get_args(TipoTitulo))
@@ -66,3 +74,44 @@ def test_mais_cdi_nunca_rende_menos(entrada: EntradaPosCDI, extra: Decimal) -> N
         )
     )
     assert maior.valor_liquido >= menor.valor_liquido
+
+
+@settings(max_examples=60, deadline=None)
+@given(
+    valores,
+    st.decimals(min_value=Decimal(1), max_value=Decimal(30), places=2),
+    aplicacoes,
+    st.integers(min_value=1, max_value=800),
+    st.decimals(min_value=Decimal(0), max_value=Decimal(50_000), places=2),
+)
+def test_tesouro_selic_liquido_entre_aplicado_e_bruto(
+    valor: Decimal, selic: Decimal, aplicacao: date, prazo: int, estoque: Decimal
+) -> None:
+    try:
+        r = simular_tesouro_selic(
+            EntradaTesouroSelic(valor, selic, aplicacao, aplicacao + timedelta(days=prazo), estoque)
+        )
+    except ValueError:
+        return
+    assert r.custodia >= 0
+    assert r.valor_liquido <= r.valor_bruto
+    # Custódia (0,2% a.a.) nunca passa do rendimento com Selic ≥ 1% a.a.
+    assert r.valor_liquido >= valor
+
+
+@settings(max_examples=60, deadline=None)
+@given(
+    valores,
+    st.decimals(min_value=Decimal(0), max_value=Decimal(30), places=2),
+    st.decimals(min_value=Decimal(0), max_value=Decimal(1), places=4),
+    aplicacoes,
+    st.integers(min_value=1, max_value=800),
+)
+def test_poupanca_nunca_perde_e_e_isenta(
+    valor: Decimal, selic: Decimal, tr: Decimal, aplicacao: date, prazo: int
+) -> None:
+    r = simular_poupanca(
+        EntradaPoupanca(valor, selic, tr, aplicacao, aplicacao + timedelta(days=prazo))
+    )
+    assert r.valor_liquido == r.valor_bruto >= valor
+    assert r.ir == r.iof == 0

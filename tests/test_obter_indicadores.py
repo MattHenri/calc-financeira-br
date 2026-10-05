@@ -38,7 +38,7 @@ async def test_tool_listada_com_enum_de_indicadores(cliente_mcp: Client) -> None
     tools = {tool.name: tool for tool in (await cliente_mcp.list_tools()).tools}
     assert "obter_indicadores" in tools
     schema = str(tools["obter_indicadores"].input_schema)
-    for nome in ("selic", "cdi", "ipca", "ipca_12m", "tr"):
+    for nome in ("selic", "selic_efetiva", "cdi", "ipca", "ipca_12m", "tr"):
         assert f"'{nome}'" in schema
 
 
@@ -60,7 +60,7 @@ async def test_consulta_indicadores_pedidos(bcb: BCBFalso, cliente_mcp: Client) 
 async def test_sem_argumento_consulta_todos(bcb: BCBFalso, cliente_mcp: Client) -> None:
     saida = await _chamar(cliente_mcp, {})
     nomes = [i["indicador"] for i in saida["resultado"]["indicadores"]]
-    assert nomes == ["selic", "cdi", "ipca", "ipca_12m", "tr"]
+    assert nomes == ["selic", "selic_efetiva", "cdi", "ipca", "ipca_12m", "tr"]
 
 
 async def test_repetidos_consultados_uma_vez(bcb: BCBFalso, cliente_mcp: Client) -> None:

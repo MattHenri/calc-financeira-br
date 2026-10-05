@@ -1,0 +1,11 @@
+# Tarifas cobradas sobre investimentos. Valores como texto para virar Decimal.
+
+[custodia_tesouro]
+fonte = "Ofício Circular B3 014/2024-VPC (em vigor desde 31/12/2024) e página de tarifas do Tesouro Direto da B3"
+# Taxa anual sobre o valor dos títulos, provisionada por dia corrido e cobrada pro rata
+# no resgate, no vencimento ou no pagamento de juros.
+taxa_anual = "0.20"
+# Base de dias da provisão diária (a fonte não define; ver docs/decisoes.md).
+base_dias = 365
+# Tesouro Selic: isento até este estoque por CPF; a taxa incide só sobre o excedente.
+isencao_tesouro_selic = "10000"

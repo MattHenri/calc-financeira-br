@@ -13,6 +13,7 @@ pytestmark = [pytest.mark.rede, pytest.mark.anyio]
 # Faixas largas só para detectar série errada ou formato quebrado, não para validar valores.
 FAIXAS: dict[NomeIndicador, tuple[Decimal, Decimal]] = {
     "selic": (Decimal(1), Decimal(40)),
+    "selic_efetiva": (Decimal(1), Decimal(40)),
     "cdi": (Decimal(1), Decimal(40)),
     "ipca": (Decimal(-3), Decimal(5)),
     "ipca_12m": (Decimal(-5), Decimal(30)),

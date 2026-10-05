@@ -18,7 +18,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 URL_BASE_SGS = "https://api.bcb.gov.br/dados/serie"
 FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
 
-NomeIndicador = Literal["selic", "cdi", "ipca", "ipca_12m", "tr"]
+NomeIndicador = Literal["selic", "selic_efetiva", "cdi", "ipca", "ipca_12m", "tr"]
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,9 @@ class SerieSGS:
 
 SERIES: dict[NomeIndicador, SerieSGS] = {
     "selic": SerieSGS(432, "Selic meta", "% a.a.", "Meta da taxa Selic definida pelo Copom"),
+    "selic_efetiva": SerieSGS(
+        1178, "Selic efetiva", "% a.a.", "Taxa Selic efetiva anualizada na base 252 dias úteis"
+    ),
     "cdi": SerieSGS(4389, "CDI", "% a.a.", "Taxa DI anualizada na base 252 dias úteis"),
     "ipca": SerieSGS(433, "IPCA mensal", "% a.m.", "Variação mensal do IPCA"),
     "ipca_12m": SerieSGS(13522, "IPCA 12 meses", "%", "IPCA acumulado nos últimos 12 meses"),

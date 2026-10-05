@@ -1,0 +1,19 @@
+# Remuneração da poupança de pessoa física (depósitos a partir de 04/05/2012).
+# Lei 8.177/1991, art. 12, com a redação da Lei 12.703/2012.
+
+fonte = "Lei 8.177/1991, art. 12 (redação da Lei 12.703/2012), texto do Planalto"
+vigente_desde = 2012-05-04
+
+# Remuneração adicional: 0,5% a.m. enquanto a meta da Selic for maior que 8,5% a.a.;
+# senão, 70% da meta da Selic ao ano, mensalizada (juros compostos).
+limite_selic = "8.5"
+adicional_mensal = "0.5"
+percentual_selic = "70"
+
+# Rendimento do período = (1 + TR) × (1 + adicional) − 1, em % com estas casas,
+# como o Banco Central publica (série SGS 195).
+casas_taxa_mensal = 4
+arredondamento_taxa_mensal = "ROUND_HALF_UP"
+
+# Contas abertas nestes dias fazem aniversário no dia 1º do mês seguinte (art. 12, § 3º).
+dias_aniversario_no_dia_1 = [29, 30, 31]

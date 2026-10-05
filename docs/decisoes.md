@@ -31,12 +31,18 @@ Complementa [definicao-projeto.md](definicao-projeto.md) com o que foi decidido 
 | 2026-10-05 | `taxa_equivalente`: conversão entre períodos por juros compostos com ano de 12 meses e 252 dias úteis; nominal × real pela equação de Fisher | Decisão de projeto |
 | 2026-10-05 | Isento × tributado exato no prazo: iguala o rendimento líquido total (o IR incide sobre o rendimento, não sobre a taxa), em vez da regra de bolso taxa / (1 − alíquota). Alíquota de IR pelo prazo; IOF fora da comparação. Em % do CDI usa o fator diário 1 + p × TDI, desprezando os truncamentos (efeito < 10⁻¹⁰) | Decisão de projeto |
 | 2026-10-05 | Taxas equivalentes com 6 casas decimais (`casas_taxas` em `convencoes.toml`) | Decisão de projeto |
+| 2026-10-05 | Prefixado (CDB/LC/LCI/LCA): fator (1 + taxa)^(dias úteis/252), truncado em 16 casas, levado até o resgate pela taxa contratada | Decisão de projeto |
+| 2026-10-05 | Tesouro Selic: IR regressivo e IOF como CDB; acumula a Selic efetiva com a convenção do CDI (taxa diária em 8 casas, fatores truncados em 16) | Definição do projeto + decisão de projeto |
+| 2026-10-05 | Poupança: rendimento do período = (1 + TR) × (1 + adicional) − 1, com 4 casas em %; adicional de 0,5% a.m. se a Selic meta > 8,5%, senão 70% da Selic a.a. mensalizada por juros compostos. Conferido com as séries SGS 195, 226 e 432 do BC | Lei 8.177/1991, art. 12 + dados do BC |
+| 2026-10-05 | Poupança: aniversário no dia do depósito; depósitos nos dias 29, 30 e 31 fazem aniversário no dia 1º do mês seguinte; crédito mensal com saldo arredondado em centavos; regra válida para depósitos a partir de 04/05/2012 | Lei 8.177/1991, art. 12, §§ 2º a 4º |
+| 2026-10-05 | Poupança: datas não passam para o dia útil seguinte (aniversário e resgate valem em qualquer dia); Selic meta e TR projetadas constantes (TR mensal da série 7811) | Decisão de projeto |
 
 ## Validação
 
 - Taxa diária do CDI conferida com a série SGS 12 do Banco Central (CDI diário): 13,65% a.a. → 0,050788% a.d.
 - Lista de feriados conferida item a item com o arquivo da ANBIMA (91 datas, 2024–2030).
 - Tabela do IOF conferida com o Anexo do Decreto 6.306/2007.
+- Rendimento mensal da poupança conferido com a série SGS 195 do Banco Central em 5 períodos (2021 e 2026), cobrindo as duas regras (Selic acima e abaixo de 8,5%).
 - Valores finais de renda fixa (`tests/referencia`) ainda **pendentes de validação** numa calculadora externa.
 
 ## Fontes oficiais
@@ -45,4 +51,5 @@ Complementa [definicao-projeto.md](definicao-projeto.md) com o que foi decidido 
 - Feriados nacionais ANBIMA: <https://www.anbima.com.br/feriados/arqs/feriados_nacionais.xls>
 - Ofício Circular B3 014/2024-VPC (tarifação do Tesouro Direto): <https://www.b3.com.br/data/files/CC/A7/6E/11/CC543910B371F339AC094EA8/OC%20014-2024-VPC%20Pol%C3%ADtica%20de%20tarifa%C3%A7%C3%A3o%20do%20Tesouro%20Direto_cobranca_semestral.pdf>
 - Tarifas de Tesouro Direto (B3): <https://www.b3.com.br/pt_br/produtos-e-servicos/tarifas/tarifas-de-tesouro-direto/>
+- Lei 8.177/1991 (poupança, art. 12): <https://www.planalto.gov.br/ccivil_03/leis/l8177.htm>
 - Resolução CMN 4.881/2020 (CET): <https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?tipo=Resolu%C3%A7%C3%A3o%20CMN&numero=4881>

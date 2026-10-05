@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-TipoTitulo = Literal["cdb", "lc", "lci", "lca"]
+TipoTitulo = Literal["cdb", "lc", "lci", "lca", "tesouro_selic", "poupanca"]
 ModoArredondamento = Literal[
     "ROUND_DOWN", "ROUND_HALF_UP", "ROUND_HALF_EVEN", "ROUND_CEILING", "ROUND_FLOOR", "ROUND_UP"
 ]
@@ -81,6 +81,28 @@ class Convencoes(BaseModel):
     valores: ConvencoesValores
 
 
+class CustodiaTesouro(BaseModel):
+    fonte: str
+    taxa_anual: Decimal = Field(ge=0)
+    base_dias: int = Field(gt=0)
+    isencao_tesouro_selic: Decimal = Field(ge=0)
+
+
+class Tarifas(BaseModel):
+    custodia_tesouro: CustodiaTesouro
+
+
+class RegrasPoupanca(BaseModel):
+    fonte: str
+    vigente_desde: date
+    limite_selic: Decimal
+    adicional_mensal: Decimal
+    percentual_selic: Decimal
+    casas_taxa_mensal: int = Field(ge=0)
+    arredondamento_taxa_mensal: ModoArredondamento
+    dias_aniversario_no_dia_1: list[int]
+
+
 def _ler_toml(nome: str) -> dict[str, Any]:
     return tomllib.loads(files("calc_financeira_br.regras").joinpath(nome).read_text("utf-8"))
 
@@ -93,3 +115,13 @@ def regras_tributacao() -> RegrasTributacao:
 @cache
 def convencoes() -> Convencoes:
     return Convencoes.model_validate(_ler_toml("convencoes.toml"))
+
+
+@cache
+def tarifas() -> Tarifas:
+    return Tarifas.model_validate(_ler_toml("tarifas.toml"))
+
+
+@cache
+def regras_poupanca() -> RegrasPoupanca:
+    return RegrasPoupanca.model_validate(_ler_toml("poupanca.toml"))

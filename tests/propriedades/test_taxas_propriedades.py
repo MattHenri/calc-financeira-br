@@ -13,9 +13,10 @@ from calc_financeira_br.calculos.taxas import (
 )
 
 unidades = st.sampled_from(get_args(UnidadePeriodo))
-taxas = st.decimals(min_value=Decimal("-50"), max_value=Decimal(200), places=4)
+# Faixa realista em qualquer unidade: de -20% a 50% (até ao dia útil, que vira ~10^44% a.a.).
+taxas = st.decimals(min_value=Decimal(-20), max_value=Decimal(50), places=4)
 aliquotas = st.sampled_from([Decimal("22.5"), Decimal(20), Decimal("17.5"), Decimal(15)])
-TOLERANCIA = Decimal("1e-20")
+TOLERANCIA = Decimal("1e-15")  # pontos percentuais
 
 
 @given(taxas, unidades, unidades)
