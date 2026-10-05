@@ -12,6 +12,9 @@ Complementa [definicao-projeto.md](definicao-projeto.md) com o que foi decidido 
 | 2026-10-01 | SDK `mcp` 2.x: `FastMCP` virou `mcp.server.MCPServer`; usamos a API nova | Documentação do SDK |
 | 2026-10-01 | Prazo para IR e IOF em dias corridos entre aplicação e resgate | Premissa (convenção de mercado) |
 | 2026-10-01 | Simulação projeta o CDI como constante (atual ou informado pelo usuário) | Premissa |
+| 2026-10-05 | Séries do SGS em `obter_indicadores`: Selic meta (432, % a.a.), CDI anualizado base 252 (4389, % a.a.), IPCA mensal (433), IPCA 12 meses (13522) e TR mensal (7811) | API do Banco Central |
+| 2026-10-05 | Consulta por intervalo de datas (últimos 120 dias até hoje), não por "últimos N": a série 432 traz datas futuras até a próxima reunião do Copom, e o IPCA sai com cerca de 2 meses de atraso | API do Banco Central |
+| 2026-10-05 | Cache em memória de 1 hora por série; se a API falhar, devolve o último valor em cache marcado como desatualizado. Falha de um indicador não derruba os outros | Decisão de projeto |
 
 ## Fontes oficiais
 

@@ -22,7 +22,7 @@ LLMs erram contas com juros compostos, dias úteis e faixas de imposto. Este ser
 
 | Tool | Status |
 |---|---|
-| `obter_indicadores` | 🚧 planejada |
+| `obter_indicadores` | ✅ Selic, CDI, IPCA (mês e 12 meses) e TR do Banco Central |
 | `simular_renda_fixa` | 🚧 planejada |
 | `comparar_investimentos` | 🚧 planejada |
 | `taxa_equivalente` | 🚧 planejada |

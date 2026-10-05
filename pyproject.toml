@@ -25,6 +25,7 @@ dependencies = [
     "httpx>=0.28,<1",
     "mcp>=2.2,<3",
     "pydantic>=2.11,<3",
+    "tzdata>=2025.2; sys_platform == 'win32'",
 ]
 
 [project.scripts]
@@ -53,6 +54,7 @@ select = [
 ignore = [
     "RUF001", "RUF002", "RUF003",  # acentos e caracteres do português são intencionais
     "PLR2004",                     # números mágicos são comuns em testes de borda
+    "N818",                        # exceções usam o prefixo "Erro" em português
 ]
 
 [tool.ruff.lint.per-file-ignores]
